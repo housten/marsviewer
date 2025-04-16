@@ -445,6 +445,13 @@ function showNoResults() {
 function hideNoResults() {
   noResults.hidden = true;
 }
+// Function to hide a modal
+function hideModal(modal) {
+  modal.classList.remove('visible');
+  setTimeout(() => {
+    modal.hidden = true;
+  }, 300); // Match the transition duration
+}
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -454,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Update camera options for Curiosity
   updateCameraOptions(DEFAULT_ROVER);
 });
+
     </script>
 </body>
 </html>
