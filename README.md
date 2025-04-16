@@ -81,4 +81,4 @@ MIT License - See LICENSE file for details.
 ## Credits
 
 - Mars photos and data: [NASA/JPL](https://www.jpl.nasa.gov/)
-- Created by: Heidi Housten
+- Created by: Heidi Housten and the Github Copilot Agents functionality.
