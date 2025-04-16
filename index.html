@@ -26,7 +26,7 @@
                 <div class="control-group">
                     <label for="rover-select">Rover</label>
                     <select id="rover-select">
-                        <option value="curiosity">Curiosity</option>
+                        <option value="curiosity" selected>Curiosity</option>
                         <option value="opportunity">Opportunity</option>
                         <option value="spirit">Spirit</option>
                         <option value="perseverance">Perseverance</option>
@@ -36,7 +36,6 @@
                 <div class="control-group">
                     <label for="camera-select">Camera</label>
                     <select id="camera-select">
-                        <option value="all">All Cameras</option>
                         <!-- Camera options will be populated by JS -->
                     </select>
                 </div>
@@ -99,11 +98,13 @@
         <p>© 2025 Mars Viewer | Powered by <a href="https://api.nasa.gov/" target="_blank">NASA APIs</a></p>
     </footer>
     
-    <!--script src="./js/main.js" type="module"-->
     <script >        
         // Constants
-const NASA_API_KEY = 'DEMO_KEY'; // Using demo key for public access
-const NASA_API_BASE_URL = 'https://api.nasa.gov/mars-photos/api/v1/rovers';
+const NASA_API_KEY = 'DEMO_KEY'; // NASA API key for accessing Mars photos
+const NASA_API_BASE_URL = 'https://api.nasa.gov/mars-photos/api/v1/rovers'; // Base URL for the API
+const DEFAULT_ROVER = 'curiosity'; // Default rover selection
+const DEFAULT_CAMERA = 'MAST'; // Default camera selection
+const MAX_PHOTOS_PER_PAGE = 1; // Limit the number of photos displayed per page
 
 // DOM Elements
 const roverSelect = document.getElementById('rover-select');
@@ -168,46 +169,71 @@ const CAMERAS_BY_ROVER = {
   ],
 };
 
-// Default values
-const DEFAULT_ROVER = 'curiosity';
-const MAX_PHOTOS_PER_PAGE = 25;
-
 // State
 let currentTheme = 'dark';
 
+// Utility function to build API URL
+// Constructs the API URL based on rover, camera, date, and sol parameters
+function buildApiUrl(rover, camera, date, sol) {
+  let apiUrl = `${NASA_API_BASE_URL}/${rover}/photos?api_key=${NASA_API_KEY}`;
+
+  // Add date or sol parameter
+  if (sol) {
+    apiUrl += `&sol=${sol}`;
+  } else if (date) {
+    apiUrl += `&earth_date=${date}`;
+  }
+
+  // Add camera filter if not "all"
+  if (camera !== 'all') {
+    apiUrl += `&camera=${camera}`;
+  }
+
+  return apiUrl;
+}
+
+// Fetch Mars photos from API
+// Makes an API call to fetch photos based on the provided parameters
+async function fetchMarsPhotos(rover, camera, date, sol) {
+  const apiUrl = buildApiUrl(rover, camera, date, sol);
+
+  try {
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Failed to fetch Mars photos');
+    }
+
+    return data.photos || [];
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    throw error;
+  }
+}
+
 // Initialize the app
+// Sets up default values, event listeners, and initial state
 function init() {
-  // Set default values
   setDefaultValues();
-  
-  // Add event listeners
   setupEventListeners();
-  
-  // Check for saved theme preference
   loadThemePreference();
-  
-  // Update camera options when rover changes
   updateCameraOptions(DEFAULT_ROVER);
-  
-  // Initial search
   searchPhotos();
 }
 
 // Set default date/sol values
+// Initializes the date and sol inputs with default values
 function setDefaultValues() {
-  // Set date input to a week ago by default
   const today = new Date();
   const weekAgo = new Date(today);
   weekAgo.setDate(weekAgo.getDate() - 7);
-  
-  const dateStr = formatDate(weekAgo);
-  dateInput.value = dateStr;
-  
-  // Default sol value
+  dateInput.value = formatDate(weekAgo);
   solInput.value = '1000';
 }
 
 // Format date to YYYY-MM-DD
+// Converts a Date object to a string in the format YYYY-MM-DD
 function formatDate(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -216,71 +242,16 @@ function formatDate(date) {
 }
 
 // Setup event listeners
+// Adds event listeners for user interactions
 function setupEventListeners() {
-  // Search button
   searchButton.addEventListener('click', searchPhotos);
-  
-  // Rover select change
-  roverSelect.addEventListener('change', (e) => {
-    updateCameraOptions(e.target.value);
-  });
-  
-  // Date/Sol inputs
-  dateInput.addEventListener('change', () => {
-    solInput.value = ''; // Clear sol when date is set
-  });
-  
-  solInput.addEventListener('change', () => {
-    dateInput.value = ''; // Clear date when sol is set
-  });
-  
-  // Modal close
-  closeModal.addEventListener('click', () => {
-    photoModal.classList.remove('visible');
-    setTimeout(() => photoModal.hidden = true, 300);
-  });
-  
-  // Info button
-  infoButton.addEventListener('click', () => {
-    infoModal.hidden = false;
-    setTimeout(() => infoModal.classList.add('visible'), 10);
-  });
-  
-  closeInfoModal.addEventListener('click', () => {
-    infoModal.classList.remove('visible');
-    setTimeout(() => infoModal.hidden = true, 300);
-  });
-  
-  // Theme toggle
+  roverSelect.addEventListener('change', (e) => updateCameraOptions(e.target.value));
+  dateInput.addEventListener('change', () => solInput.value = '');
+  solInput.addEventListener('change', () => dateInput.value = '');
+  closeModal.addEventListener('click', () => hideModal(photoModal));
+  infoButton.addEventListener('click', () => showModal(infoModal));
+  closeInfoModal.addEventListener('click', () => hideModal(infoModal));
   themeToggle.addEventListener('click', toggleTheme);
-  
-  // Close modals when clicking outside content
-  photoModal.addEventListener('click', (e) => {
-    if (e.target === photoModal) {
-      photoModal.classList.remove('visible');
-      setTimeout(() => photoModal.hidden = true, 300);
-    }
-  });
-  
-  infoModal.addEventListener('click', (e) => {
-    if (e.target === infoModal) {
-      infoModal.classList.remove('visible');
-      setTimeout(() => infoModal.hidden = true, 300);
-    }
-  });
-  
-  // Keyboard events
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      // Close modals with ESC key
-      photoModal.classList.remove('visible');
-      infoModal.classList.remove('visible');
-      setTimeout(() => {
-        photoModal.hidden = true;
-        infoModal.hidden = true;
-      }, 300);
-    }
-  });
 }
 
 // Toggle between light and dark theme
@@ -323,73 +294,43 @@ function updateCameraOptions(roverName) {
   // Clear current options
   cameraSelect.innerHTML = '';
   
-  // Add "All Cameras" option
-  const allOption = document.createElement('option');
-  allOption.value = 'all';
-  allOption.textContent = 'All Cameras';
-  cameraSelect.appendChild(allOption);
-  
   // Add rover-specific camera options
   const cameras = CAMERAS_BY_ROVER[roverName] || [];
   cameras.forEach(camera => {
     const option = document.createElement('option');
     option.value = camera.id;
     option.textContent = camera.name;
+    if (camera.id === DEFAULT_CAMERA && roverName === DEFAULT_ROVER) {
+      option.selected = true;
+    }
     cameraSelect.appendChild(option);
   });
 }
 
 // Search for photos
+// Fetches and displays photos based on user input
 async function searchPhotos() {
   try {
     showLoader();
     hideError();
     hideNoResults();
-    
+
     const rover = roverSelect.value;
     const camera = cameraSelect.value;
     const date = dateInput.value;
     const sol = solInput.value;
-    
-    // Validate inputs
-    if (!rover) {
-      throw new Error('Please select a rover');
-    }
-    
-    if (!date && !sol) {
-      throw new Error('Please enter either an Earth date or a Sol');
-    }
-    
-    // Build API URL
-    let apiUrl = `${NASA_API_BASE_URL}/${rover}/photos?api_key=${NASA_API_KEY}`;
-    
-    // Add date or sol parameter
-    if (sol) {
-      apiUrl += `&sol=${sol}`;
-    } else if (date) {
-      apiUrl += `&earth_date=${date}`;
-    }
-    
-    // Add camera filter if not "all"
-    if (camera !== 'all') {
-      apiUrl += `&camera=${camera}`;
-    }
-    
-    // Fetch data from API
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to fetch Mars photos');
-    }
-    
-    const photos = data.photos || [];
-    
-    // Display photos
+
+    if (!rover) throw new Error('Please select a rover');
+    if (!date && !sol) throw new Error('Please enter either an Earth date or a Sol');
+
+    const photos = await fetchMarsPhotos(rover, camera, date, sol);
     displayPhotos(photos);
-    
+
+    if (photos.length === 0) {
+      hideLoader();
+      showNoResults();
+    }
   } catch (error) {
-    console.error('Error fetching photos:', error);
     showError(error.message);
   } finally {
     hideLoader();
@@ -397,26 +338,17 @@ async function searchPhotos() {
 }
 
 // Display photos in the grid
+// Renders photo cards in the gallery
 function displayPhotos(photos) {
-  // Clear current photos
   photosGrid.innerHTML = '';
-  
-  // Check if there are any photos
   if (photos.length === 0) {
     showNoResults();
     return;
   }
-  
-  // Only show a limited number of photos to improve performance
+
   const displayPhotos = photos.slice(0, MAX_PHOTOS_PER_PAGE);
-  
-  // Create photo cards
-  displayPhotos.forEach(photo => {
-    const photoCard = createPhotoCard(photo);
-    photosGrid.appendChild(photoCard);
-  });
-  
-  // Add a count message if there are more photos than we're displaying
+  displayPhotos.forEach(photo => photosGrid.appendChild(createPhotoCard(photo)));
+
   if (photos.length > MAX_PHOTOS_PER_PAGE) {
     const countMessage = document.createElement('div');
     countMessage.className = 'count-message';
@@ -429,27 +361,40 @@ function displayPhotos(photos) {
 function createPhotoCard(photo) {
   const card = document.createElement('div');
   card.className = 'photo-card';
-  
+
   // Create image
   const img = document.createElement('img');
+  img.loading = 'lazy'; // Lazy load images
+
+  // Hide loader once image is loaded
+  img.onload = () => {
+    hideLoader();
+  };
+
+  // Hide loader if there's an error loading the image
+  img.onerror = () => {
+    hideLoader();
+    showError('Failed to load image. Please try again.');
+  };
+
+  // Set image source after setting up handlers
   img.src = photo.img_src;
   img.alt = `Mars photo taken by ${photo.rover.name} rover's ${photo.camera.full_name}`;
-  img.loading = 'lazy'; // Lazy load images
-  
+
   // Simple image info
   const info = document.createElement('div');
   info.className = 'photo-info';
   info.textContent = `${photo.camera.name} - Sol ${photo.sol}`;
-  
+
   // Add click event to open modal
   card.addEventListener('click', () => {
     showPhotoModal(photo);
   });
-  
+
   // Append elements
   card.appendChild(img);
   card.appendChild(info);
-  
+
   return card;
 }
 
@@ -502,7 +447,13 @@ function hideNoResults() {
 }
 
 // Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  // Ensure Curiosity is selected
+  roverSelect.value = DEFAULT_ROVER;
+  // Update camera options for Curiosity
+  updateCameraOptions(DEFAULT_ROVER);
+});
     </script>
 </body>
 </html>

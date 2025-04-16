@@ -47,6 +47,33 @@ Mars Viewer works in modern browsers that support:
 2. Open the project in your code editor
 3. Launch with a local server (e.g., using VS Code's Live Server extension)
 
+## Contribution Guidelines
+
+Contributions are welcome! To contribute:
+1. Fork the repository.
+2. Create a new branch for your feature or bug fix.
+3. Make your changes and commit them with clear messages.
+4. Submit a pull request describing your changes.
+
+Please ensure your code follows the project's style and includes relevant tests or documentation updates.
+
+## Known Limitations
+
+- The application uses NASA's DEMO_KEY, which has rate limits. For higher usage, register for your own API key.
+- The app relies on client-side rendering, which may not perform well with a large number of photos.
+- Limited support for older browsers that do not support ES6+ features or modern CSS.
+
+## Deployment Workflow
+
+This project is deployed using GitHub Pages. The deployment process is automated via a GitHub Actions workflow:
+
+1. On every push to the `main` branch, the workflow builds and deploys the site to GitHub Pages.
+2. The workflow configuration can be found in `.github/workflows/static.yml`.
+
+To deploy manually:
+1. Ensure your changes are committed and pushed to the `main` branch.
+2. Verify the deployment at [https://housten.github.io/marsviewer/](https://housten.github.io/marsviewer/).
+
 ## License
 
 MIT License - See LICENSE file for details.
